@@ -1,12 +1,19 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.UserCreateDTO;
+import com.example.demo.dto.UserUpdateDTO;
+import com.example.demo.dto.UserViewDTO;
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.exception.UserNotFoundException;
+import jakarta.validation.Valid;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("api/users")
@@ -15,42 +22,47 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ModelMapper modelMapper;
+
     @GetMapping
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserViewDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(user -> modelMapper.map(user, UserViewDTO.class))
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserViewDTO> getUserById(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("Kullanıcı bulunamadı: " + id));
+        return ResponseEntity.ok(modelMapper.map(user, UserViewDTO.class));
     }
 
     @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userRepository.save(user);
+    public UserViewDTO createUser(@Valid @RequestBody UserCreateDTO userCreateDTO) {
+        User user = modelMapper.map(userCreateDTO, User.class);
+        User savedUser = userRepository.save(user);
+        return modelMapper.map(savedUser, UserViewDTO.class);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
-        return userRepository.findById(id)
-                .map(existingUser -> {
-                    existingUser.setName(userDetails.getName());
-                    existingUser.setEmail(userDetails.getEmail());
-                    existingUser.setPassword(userDetails.getPassword());
-                    return ResponseEntity.ok(userRepository.save(existingUser));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserViewDTO> updateUser(@PathVariable Long id,
+                                                  @Valid @RequestBody UserUpdateDTO userUpdateDTO) {
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("Kullanıcı bulunamadı: " + id));
+
+        modelMapper.map(userUpdateDTO, existingUser);
+        User updatedUser = userRepository.save(existingUser);
+        return ResponseEntity.ok(modelMapper.map(updatedUser, UserViewDTO.class));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .map(user -> {
-                    userRepository.delete(user);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        if (!userRepository.existsById(id)) {
+            throw new UserNotFoundException("Kullanıcı bulunamadı: " + id);
+        }
+        userRepository.deleteById(id);
+        return ResponseEntity.ok().build();
     }
 }
