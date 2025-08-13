@@ -1,8 +1,8 @@
 package com.example.demo.controller;
 
-import com.example.demo.dto.UserCreateDTO;
-import com.example.demo.dto.UserUpdateDTO;
-import com.example.demo.dto.UserViewDTO;
+import com.example.demo.dto.user.UserCreateDTO;
+import com.example.demo.dto.user.UserUpdateDTO;
+import com.example.demo.dto.user.UserViewDTO;
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.exception.UserNotFoundException;
